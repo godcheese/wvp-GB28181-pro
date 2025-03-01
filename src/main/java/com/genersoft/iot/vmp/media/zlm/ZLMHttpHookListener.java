@@ -13,9 +13,12 @@ import com.genersoft.iot.vmp.media.zlm.dto.hook.*;
 import com.genersoft.iot.vmp.media.zlm.event.HookZlmServerKeepaliveEvent;
 import com.genersoft.iot.vmp.media.zlm.event.HookZlmServerStartEvent;
 import com.genersoft.iot.vmp.service.IMediaService;
+import com.genersoft.iot.vmp.streamPush.service.impl.ScriptUtil;
 import com.genersoft.iot.vmp.utils.MediaServerUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
@@ -48,6 +51,8 @@ public class ZLMHttpHookListener {
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
 
+    @Value("${record_end.script}")
+    private String recordEndScript;
 
     /**
      * 服务器定时上报时间，上报间隔可配置，默认10s上报一次
@@ -62,7 +67,7 @@ public class ZLMHttpHookListener {
                 event.setMediaServerItem(mediaServerItem);
                 applicationEventPublisher.publishEvent(event);
             }
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.info("[ZLM-HOOK-心跳] 发送通知失败 ", e);
         }
         return HookResult.SUCCESS();
@@ -82,7 +87,7 @@ public class ZLMHttpHookListener {
             log.info("[ZLM HOOK] 播放鉴权 失败：{}->{}", param.getMediaServerId(), param);
             return new HookResult(401, "Unauthorized");
         }
-        if (log.isDebugEnabled()){
+        if (log.isDebugEnabled()) {
             log.debug("[ZLM HOOK] 播放鉴权成功：{}->{}", param.getMediaServerId(), param);
         }
         return HookResult.SUCCESS();
@@ -111,7 +116,7 @@ public class ZLMHttpHookListener {
             HookResultForOnPublish successResult = HookResultForOnPublish.getInstance(resultForOnPublish);
             log.info("[ZLM HOOK]推流鉴权 响应：{}->{}->>>>{}", param.getMediaServerId(), param, successResult);
             return successResult;
-        }else {
+        } else {
             HookResultForOnPublish fail = HookResultForOnPublish.Fail();
             log.info("[ZLM HOOK]推流鉴权 响应：{}->{}->>>>{}", param.getMediaServerId(), param, fail);
             return fail;
@@ -131,7 +136,7 @@ public class ZLMHttpHookListener {
         }
         if (!ObjectUtils.isEmpty(mediaServer.getTranscodeSuffix())
                 && !"null".equalsIgnoreCase(mediaServer.getTranscodeSuffix())
-                && param.getStream().endsWith(mediaServer.getTranscodeSuffix())  ) {
+                && param.getStream().endsWith(mediaServer.getTranscodeSuffix())) {
             return HookResult.SUCCESS();
         }
         if (param.getSchema().equalsIgnoreCase("rtsp")) {
@@ -142,11 +147,12 @@ public class ZLMHttpHookListener {
                     try {
                         URL url = new URL("http" + param.getOriginUrl().substring(4));
                         queryParams = url.getQuery();
-                    }catch (MalformedURLException ignored) {}
+                    } catch (MalformedURLException ignored) {
+                    }
                 }
                 if (queryParams != null) {
                     param.setParamMap(MediaServerUtils.urlParamToMap(queryParams));
-                }else {
+                } else {
                     param.setParamMap(new HashMap<>());
                 }
                 MediaArrivalEvent mediaArrivalEvent = MediaArrivalEvent.getInstance(this, param, mediaServer, userSetting.getServerId());
@@ -179,8 +185,8 @@ public class ZLMHttpHookListener {
         }
         if (!ObjectUtils.isEmpty(mediaInfo.getTranscodeSuffix())
                 && !"null".equalsIgnoreCase(mediaInfo.getTranscodeSuffix())
-                && param.getStream().endsWith(mediaInfo.getTranscodeSuffix())  ) {
-            param.setStream(param.getStream().substring(0, param.getStream().lastIndexOf(mediaInfo.getTranscodeSuffix()) -1 ));
+                && param.getStream().endsWith(mediaInfo.getTranscodeSuffix())) {
+            param.setStream(param.getStream().substring(0, param.getStream().lastIndexOf(mediaInfo.getTranscodeSuffix()) - 1));
         }
 
         JSONObject ret = new JSONObject();
@@ -226,7 +232,7 @@ public class ZLMHttpHookListener {
                 event.setMediaServerItem(mediaServerItem);
                 applicationEventPublisher.publishEvent(event);
             }
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.info("[ZLM-HOOK-ZLM启动] 发送通知失败 ", e);
         }
 
@@ -253,7 +259,7 @@ public class ZLMHttpHookListener {
                 event.setMediaServer(mediaServerItem);
                 applicationEventPublisher.publishEvent(event);
             }
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.info("[ZLM-HOOK-rtp发送关闭] 发送通知失败 ", e);
         }
 
@@ -266,7 +272,7 @@ public class ZLMHttpHookListener {
     @ResponseBody
     @PostMapping(value = "/on_rtp_server_timeout", produces = "application/json;charset=UTF-8")
     public HookResult onRtpServerTimeout(@RequestBody OnRtpServerTimeoutHookParam
-            param) {
+                                                 param) {
         log.info("[ZLM HOOK] rtpServer收流超时：{}->{}({})", param.getMediaServerId(), param.getStream_id(), param.getSsrc());
 
         try {
@@ -277,7 +283,7 @@ public class ZLMHttpHookListener {
                 event.setApp("rtp");
                 applicationEventPublisher.publishEvent(event);
             }
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.info("[ZLM-HOOK-rtpServer收流超时] 发送通知失败 ", e);
         }
 
@@ -290,7 +296,7 @@ public class ZLMHttpHookListener {
     @ResponseBody
     @PostMapping(value = "/on_record_mp4", produces = "application/json;charset=UTF-8")
     public HookResult onRecordMp4(HttpServletRequest request, @RequestBody OnRecordMp4HookParam param) {
-        log.info("[ZLM HOOK] 录像完成：时长: {}, {}->{}",param.getTime_len(), param.getMediaServerId(), param.getFile_path());
+        log.info("[ZLM HOOK] 录像完成：时长: {}, {}->{}", param.getTime_len(), param.getMediaServerId(), param.getFile_path());
 
         try {
             MediaServer mediaServerItem = mediaServerService.getOne(param.getMediaServerId());
@@ -298,8 +304,17 @@ public class ZLMHttpHookListener {
                 MediaRecordMp4Event event = MediaRecordMp4Event.getInstance(this, param, mediaServerItem);
                 event.setMediaServer(mediaServerItem);
                 applicationEventPublisher.publishEvent(event);
+
+                try {
+                    log.info("执行录像完成脚本, recordEndScript : {}", recordEndScript);
+                    if (StringUtils.isNotBlank(recordEndScript)) {
+                        ScriptUtil.exceCommond(recordEndScript);
+                    }
+                } catch (Exception e) {
+                    log.error("", e);
+                }
             }
-        }catch (Exception e) {
+        } catch (Exception e) {
             log.info("[ZLM-HOOK-rtpServer收流超时] 发送通知失败 ", e);
         }
 
