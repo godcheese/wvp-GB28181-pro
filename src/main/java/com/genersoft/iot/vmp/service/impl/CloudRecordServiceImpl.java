@@ -14,6 +14,7 @@ import com.genersoft.iot.vmp.service.bean.CloudRecordItem;
 import com.genersoft.iot.vmp.service.bean.DownloadFileInfo;
 import com.genersoft.iot.vmp.storager.IRedisCatchStorage;
 import com.genersoft.iot.vmp.storager.dao.CloudRecordServiceMapper;
+import com.genersoft.iot.vmp.streamPush.service.impl.ScriptUtil;
 import com.genersoft.iot.vmp.utils.CloudRecordUtils;
 import com.genersoft.iot.vmp.utils.DateUtil;
 import com.genersoft.iot.vmp.vmanager.bean.ErrorCode;
@@ -21,7 +22,9 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -50,6 +53,9 @@ public class CloudRecordServiceImpl implements ICloudRecordService {
 
     @Autowired
     private AssistRESTfulUtils assistRESTfulUtils;
+
+    @Value("${record_end.script}")
+    private String recordEndScript;
 
     @Override
     public PageInfo<CloudRecordItem> getList(int page, int count, String query, String app, String stream, String startTime, String endTime, List<MediaServer> mediaServerItems, String callId) {
@@ -115,6 +121,16 @@ public class CloudRecordServiceImpl implements ICloudRecordService {
                 cloudRecordItem.setCallId(streamAuthorityInfo.getCallId());
             }
         }
+
+        try {
+            log.info("执行录像完成脚本, recordEndScript : {}", recordEndScript);
+            if (StringUtils.isNotBlank(recordEndScript)) {
+                ScriptUtil.exceCommond(recordEndScript);
+            }
+        } catch (Exception e) {
+            log.error("", e);
+        }
+
         log.info("[添加录像记录] {}/{}, callId: {}, 内容：{}", event.getApp(), event.getStream(), cloudRecordItem.getCallId(), event.getRecordInfo());
         cloudRecordServiceMapper.add(cloudRecordItem);
     }

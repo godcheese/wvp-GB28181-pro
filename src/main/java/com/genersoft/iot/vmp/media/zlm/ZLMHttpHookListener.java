@@ -51,9 +51,6 @@ public class ZLMHttpHookListener {
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
 
-    @Value("${record_end.script}")
-    private String recordEndScript;
-
     /**
      * 服务器定时上报时间，上报间隔可配置，默认10s上报一次
      */
@@ -304,15 +301,6 @@ public class ZLMHttpHookListener {
                 MediaRecordMp4Event event = MediaRecordMp4Event.getInstance(this, param, mediaServerItem);
                 event.setMediaServer(mediaServerItem);
                 applicationEventPublisher.publishEvent(event);
-
-                try {
-                    log.info("执行录像完成脚本, recordEndScript : {}", recordEndScript);
-                    if (StringUtils.isNotBlank(recordEndScript)) {
-                        ScriptUtil.exceCommond(recordEndScript);
-                    }
-                } catch (Exception e) {
-                    log.error("", e);
-                }
             }
         } catch (Exception e) {
             log.info("[ZLM-HOOK-rtpServer收流超时] 发送通知失败 ", e);
